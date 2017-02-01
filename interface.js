@@ -132,7 +132,13 @@ function gethashdata() {
 
 // Sets a url-parameter-style string as the hash part of a url.
 function sethashdata(data) {
-  window.location.hash = $.param(data);
+  if (!window.location.hash && window.history.replaceState) {
+    // Overwrite a hashless history entry.
+    window.history.replaceState(null, null, '#' + $.param(data));
+  } else {
+    // If there is already a hash, create a history entry as usual.
+    window.location.hash = $.param(data);
+  }
 }
 
 
