@@ -47,10 +47,11 @@ $(function() {
   var sinit;
   // Generate static HTML such as the number palette.
   setup_screen();
-  if (window.location.hash && (sinit = currentstate()).elapsed != null) {
+  if (window.location.hash && (sinit = currentstate()).seed) {
     // If the URL contains game state, adjust the time and log an event.
     starttime = (new Date).getTime() - sinit.elapsed;
     $(document).trigger('log', ['linkgame', {seed: sinit.seed}]);
+    saveseed(sinit.seed);
   } else {
     // For a bare URL, modify the url to have a game (generated or loaded).
     setupgame(0);
@@ -89,6 +90,8 @@ function setupgame(seed) {
     timer: SHOW_TIMER,
     gentime: gentime,
   });
+  // Remember this is the last seed played.
+  saveseed(seed);
 }
 
 
