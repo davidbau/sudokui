@@ -1,0 +1,51 @@
+<!doctype html>
+<html>
+<head>
+<title>6.831 Sudokui</title>
+<meta name="viewport" content="width=device-width,user-scalable=no">
+<link rel="stylesheet" href="layout.css">
+<script src="lib/jquery-3.1.1.js"></script>
+<script src="lib/seedrandom.js"></script>
+<script src="algorithm.js"></script>
+<script src="hintmaker.js"></script>
+<script src="interface.js"></script>
+<script src="logging.js"></script>
+</head>
+<body>
+<table style="width:100%;height:100%;"><tr><td align="center">
+<center><h1>6.831 Sudokui</h1>
+</center>
+<center style="display:table-cell;vertical-align:middle;">
+<div class="puzzlename" id="grade">&nbsp;</div>
+<table class="timescore"><tr>
+<td style="text-align:center">
+<span class="progress">Time</span>
+<span class="finished">Finished in</span> <span class="timer">0</span></td>
+</table>
+<table><tr>
+<td style="text-align:center" id="leftlayout">
+</td>
+<td>
+<center id="centerlayout">
+<input type="button" value="Clear" id="clearbutton"
+   title="Reset puzzle."
+><input type="button" value="Check" id="checkbutton"
+   title="Check for mistakes."
+><input type="button" value="&laquo; Prev" id="prevbutton"
+   title="Previous puzzle.  Ctrl to go back 10."
+><input type="button" value="Next &raquo;" id="nextbutton"
+   title="Next puzzle.  Ctrl to go forward 10."
+>
+</center>
+</td>
+<td id="rightlayout">
+</td>
+</tr>
+</table>
+<div class="sudoku-popup" id="victory">You Win!</div>
+<div class="sudoku-popup" id="ok">ok so far</div>
+<div class="sudoku-popup" id="errors">mistake</div>
+</td></tr>
+</table>
+</body>
+</html>
