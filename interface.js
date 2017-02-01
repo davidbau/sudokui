@@ -73,6 +73,8 @@ function setupgame(seed) {
   if (!seed) { seed = loadseed(); }
   // Log an event for the new game.
   $(document).trigger('log', ['setupgame', {seed: seed}]);
+  // Remember this is the last seed played.
+  saveseed(seed);
   // If there is already a saved game for this seed, load it.
   if (loadgame(storagename(seed))) { return; }
   // Otherwise generate one: make it quickly, and make it symmetric.
@@ -90,8 +92,6 @@ function setupgame(seed) {
     timer: SHOW_TIMER,
     gentime: gentime,
   });
-  // Remember this is the last seed played.
-  saveseed(seed);
 }
 
 
@@ -343,8 +343,8 @@ $(document).on('click', '#prevbutton', function(ev) {
 $(document).on('click', '#clearbutton', function(ev) {
   hidepopups();
   var state = currentstate();
-  var cleared = {puzzle: state.puzzle, answer:[], work:[],
-                 gentime: (new Date).getTime()};
+  var cleared = {puzzle: state.puzzle, seed: state.seed, timer: state.timer,
+                 answer:[], work:[], gentime: (new Date).getTime()};
   commitstate(cleared);
 });
 
