@@ -644,6 +644,11 @@ function base64toarray(base64) {
   return result;
 }
 
+// Constant to set up for use by encoders above.
+var base64chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
+                  "abcdefghijklmnopqrstuvwxyz" +
+                  "0123456789" +
+                  "-_";
 
 /////////////////////////////////////////////////////////////////////////////
 // Static HTML construction.
@@ -704,10 +709,4 @@ function setup_screen() {
   $('#leftlayout').prepend(numberkeyhtml());
 }
 
-
-// Constants to set up before anything.
-var base64chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
-                  "abcdefghijklmnopqrstuvwxyz" +
-                  "0123456789" +
-                  "-_";
 
