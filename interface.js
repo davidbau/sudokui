@@ -311,6 +311,7 @@ function isalt(ev) {
 // Next/Previous game handling
 /////////////////////////////////////////////////////////////////////////////
 
+// Increments or decrements the seed, then sets up that game.
 function flippage(skip) {
   var state = currentstate();
   var seed = parseInt(state.seed);
@@ -324,14 +325,15 @@ function flippage(skip) {
   setupgame(seed);
 }
 
+// Handles the next button.
 $(document).on('click', '#nextbutton', function(ev) {
-  flippage(isalt(ev) ? 10 : 1);
+  flippage(1);
 });
 
+// Handles the previous button.
 $(document).on('click', '#prevbutton', function(ev) {
-  flippage(isalt(ev) ? -10 : -1);
+  flippage(-1);
 });
-
 
 /////////////////////////////////////////////////////////////////////////////
 // Clear/Check game handling
