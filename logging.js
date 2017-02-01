@@ -44,8 +44,11 @@ function hookEventsToLog() {
     return originalFix.call(this, originalEvent);
   };
 
-  // Show our own unique id so we can find it in the logs.
-  console.log('Your unique id is', uid);
+  // Once the page is loaded, show our own unique id.
+  $(function() {
+    console.log('Your unique id is', uid);
+    $('#bottomtext').html('Logging to the network as <nobr>' + uid + '</nobr>')
+  });
 
   // Listen to 'log' events which are triggered anywhere in the document.
   $(document).on('log', logEvent);
@@ -135,7 +138,9 @@ function logEvent(event, customName, customInfo) {
 }
 
 // OK, go.
-hookEventsToLog();
+if (ENABLE_NETWORK_LOGGING) {
+  hookEventsToLog();
+}
 
 })();
 

@@ -76,6 +76,16 @@ table.timescore .timer {
 .hinttext {
   display: none; }
 
+/* Centered message underneath the UI */
+#bottomtext {
+  text-align:center;
+  margin: 15px 0 0 0;
+  font: 10pt Open Sans; }
+/* Allow selection of user id */
+#bottomtext nobr {
+  -webkit-user-select: text;
+  user-select: text; }
+
 /* Styling for a menu of numbers */
 table.numberkey {
   border-collapse: no-collapse;
