@@ -1,26 +1,31 @@
 Sudokui
 -------
 
-A computer interface just can not match the satisfying experience
-of solving a good Sudoku on pencil and paper.  Or can it?
+A computer interface could never be as satisfying as the experience
+of solving a good Sudoku on pencil and paper.
 
-Here you will try making an improved Sudoku UI, and then you will use
-an A/B test to see how users react to your changes.
+Or can it?
 
-This app has a number of features that might be improved.
+This project is the source code for a basic Sudoku UI.  You should
+improve the interface, and then run an A/B test to see how users
+react to your changes.
 
-- Numbers are filled using two clicks: pick a number then a square.
-- Holding the check button checks your work without explanation.
-- Mobile usage works, but it is not comfortable.
-- Keystrokes do not do anything.
-- There is a timer, but no other extrinsic motivators.
+[Try it here.](https://rawgit.com/davidbau/sudokui/master/)
+
+This app has a number of features that might be improved. For example...
+
+- Filing a number needs two clicks: pick a number then a square.
+- Holding the check button complains about mistakes without explanation.
+- Mobile usage works, but it is not very pretty.
+- Keystrokes do not do anything at all.
+- There is a timer, but there are no other extrinsic motivators.
 - You can bookmark and sequence through puzzles, but no other navigation.
-- Numbers can be made small with the undiscoverable ui of holding shift.
+- Small numbers can be written with a totally undiscoverable shift-key click.
 
-To measure your new version, you will be doing an A/B test, so you
-will need to collect and analyze logs of user behavior.
+Can you make it better? To measure your new version, you will need to
+collect and analyze logs of user behavior.
 
-Although app code works for traditional 9x9 boards (change Sudoku.init),
+Although the code works for traditional 9x9 boards (change Sudoku.init),
 you should test your improved interface at 4x4 so that you can collect
 more data in a limited amount of time.
 
