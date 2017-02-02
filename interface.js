@@ -17,7 +17,6 @@ Sudoku.init(2);
 
 var DISABLE_CONTEXTMENU = false; // Enables context menus.
 var USE_LOCAL_STORAGE = true;    // Enables saving state to localStorage.
-var SHOW_TIMER = 1;              // Enables timer.
 var SYMMETRIC_PUZZLES = false;   // Allows asymmetric puzzles.
 
 // This app uses url-based state to support deep linking.  That means
@@ -96,7 +95,6 @@ function setupgame(seed) {
     answer: [],
     work: [],
     elapsed: 0,
-    timer: SHOW_TIMER,
     gentime: gentime,
   });
 }
@@ -176,8 +174,6 @@ function encodeboardstate(state) {
   if ('gentime' in state) { result.gentime = state.gentime; }
   // elapsed: number of milliseconds the user has actively spent on the puzzle.
   if ('elapsed' in state) { result.elapsed = state.elapsed; }
-  // timer: true if the time should be shown.
-  if ('timer' in state) { result.timer = state.timer; }
   // size: 2 for 4x4 boards, 3 for 9x9 boards.
   result.size = Sudoku.B;
   return result;
@@ -203,7 +199,6 @@ function decodeboardstate(data) {
   if ('seed' in data) { result.seed = data.seed; }
   if ('gentime' in data) { result.gentime = data.gentime; }
   if ('elapsed' in data) { result.elapsed = data.elapsed; }
-  if ('timer' in data) { result.timer = parseInt(data.timer); }
   return result;
 }
 
@@ -223,7 +218,6 @@ function redraw(s, pos) {
   var answer = state.answer;
   var work = state.work;
   var victory = victorious(state);
-  var timer = ('timer' in state && state.timer);
   var seed = state.seed;
 
   // Set the title of the puzzle.
@@ -239,13 +233,11 @@ function redraw(s, pos) {
   // Render timer UI
   $('.progress').css('display', victory ? 'none' : 'inline');
   $('.finished').css('display', victory ? 'inline' : 'none');
-  $('.timescore').css('visibility', timer ? 'visible' : '');
-  $('.timescore .timer').css('display', timer ? 'inline' : 'none');
   if (!victory) {
     $('.timer').text(formatelapsed((new Date).getTime() - starttime));
   }
   // If the timer should be running but it is not, get it going.
-  if (timer && !victory && !runningtime) {
+  if (!victory && !runningtime) {
     runningtime = true;
     updatetime();
   }
@@ -436,7 +428,7 @@ function flippage(skip) {
 $(document).on('click', '#clearbutton', function(ev) {
   hidepopups();
   var state = currentstate();
-  var cleared = {puzzle: state.puzzle, seed: state.seed, timer: state.timer,
+  var cleared = {puzzle: state.puzzle, seed: state.seed,
                  answer:[], work:[], gentime: (new Date).getTime()};
   commitstate(cleared);
 });
