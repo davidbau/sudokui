@@ -25,11 +25,12 @@ var Sudoku = {
 
 init: (function(B) {
 
+// Within this scope, 'lib' refers to the exported 'Sudoku' object,
+// so "lib.B = B" makes B globally available as Sudoku.B.
 var lib = this;
 
 // Block size: classic Sudoku has B = 3 with a 9x9 board.
-// (Invoke Sudoku.init(2) to use 4x4 boards instead.)
-
+// (You can invoke Sudoku.init(2) to use 4x4 boards instead.)
 if (!B) { B = 3; }
 lib.B = B;
 
@@ -39,6 +40,7 @@ lib.C = lib.N * B;        // Cube of B; number of squares in a strip of blocks
 lib.M = (1 << lib.N) - 1; // Bitmask, with one bit per square
 
 // Returns an array of 81 nulls.
+
 function emptyboard() {
   var result = [];
   for (var pos = 0; pos < lib.S; pos++) {
@@ -236,6 +238,7 @@ function deduce(board) {
 // Given an input 81-number-or-null array (board), returns an array
 // of positions, ordered from least-constrained to most-constrained,
 // with positions at the same level of constraint shuffled.
+
 function unconstrained(board) {
   var bits = figurebits(board);
   var results = [];
@@ -465,13 +468,14 @@ function shuffle(o) {
        j = Math.floor(Math.random() * i), x = o[--i], o[i] = o[j], o[j] = x);
 }
 
+// Used by interface.js
 lib.emptyboard = emptyboard;
 lib.solution = solution;
 lib.solvable = solvable;
 lib.uniquesolution = uniquesolution;
 lib.makepuzzle = makepuzzle;
 
-// Utilities used by sudoku-hint.js
+// Utilities used by hintmaker.js
 lib.posfor = posfor;
 lib.posforblock = posforblock;
 lib.axisfor = axisfor;

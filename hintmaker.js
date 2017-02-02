@@ -23,6 +23,7 @@ var debugging_enabled = false;
 //   exclude: a bitmask of alternatives no longer allowed
 //   reduced: array of locations (0-N^2-1) which are constrained by the hint
 //   support: array of locations (0-N^2-1) which are evidence of the hint
+
 function hint(puzzle, answer, work) {
   if ('puzzle' in puzzle && 'answer' in puzzle && 'work' in puzzle) {
     work = puzzle.work;
@@ -43,6 +44,7 @@ function hint(puzzle, answer, work) {
 
 // A raw version of SudokuHint.hint that returns an array of hints,
 // after trying a series of deduction algorithms.
+
 function rawhints(puzzle, answer, work, nomistakes) {
   var sofar = boardsofar(puzzle, answer);
   var unz = unzeroedwork(puzzle, answer, work);
@@ -79,7 +81,8 @@ function rawhints(puzzle, answer, work, nomistakes) {
   };
 }
 
-// Utility for printout out hints.
+// Utility for printout of hints.
+
 function dumphints(h) {
   if (debugging_enabled) {
     console.log("Level", h.level, "options", h.hints.length,
@@ -92,6 +95,7 @@ function dumphints(h) {
 // same as checking for numbers that will be wrong in the long run.
 // Checking for guesses that will turn out to be wrong is done by
 // the function mistakes(), below.
+
 function conflicts(board) {
   var marked = Sudoku.emptyboard();
   for (var axis = 0; axis < 3; axis++) {
@@ -128,6 +132,7 @@ function conflicts(board) {
 
 // Checks for mistakes: numbers which we know to be incorrect if the
 // board is completely solved.
+
 function mistakes(board, answer, work) {
   var solution = Sudoku.solution(board);
   var errors = [];
@@ -152,6 +157,7 @@ function mistakes(board, answer, work) {
 // Returns an array of all the given and filled-in numbers so far,
 // given two input arrays: puzzle is the array of initially given numbers,
 // answer is the array of user-supplied answers.
+
 function boardsofar(puzzle, answer) {
   var sofar = puzzle.slice();
   for (var j = 0; j < Sudoku.S; j++) {
@@ -162,6 +168,7 @@ function boardsofar(puzzle, answer) {
 
 // Assume that if a number isn't marked at all within a block,
 // the player thinks that the number could be anywhere in the block.
+
 function unzeroedwork(puzzle, answer, work) {
   var result = work.slice();
   var solution = Sudoku.solution(puzzle);
@@ -195,12 +202,14 @@ function unzeroedwork(puzzle, answer, work) {
 }
 
 // Converts an unmarked bitmask to a bitmask representing all bits.
+
 function unzero(bits) {
   if (bits == 0) return Sudoku.M;
   return bits;
 }
 
 // Wherever the work array is empty, fill in the full all-ones bitmask.
+
 function fillzeroeswork(puzzle, answer, work) {
   var result = work.slice();
   var sofar = boardsofar(puzzle, answer);
@@ -213,6 +222,7 @@ function fillzeroeswork(puzzle, answer, work) {
 }
 
 // Makes a new array of n zeros.
+
 function zero_counts(n) {
   var counts = [];
   for (var j = 0; j < n; j++) {
@@ -226,6 +236,7 @@ function zero_counts(n) {
 // poslist is an array of positions (each to N^2) to explain.
 // nums is a bitmask (up to 2^N-1) of the numbers that are excluded.
 // Returns an array of positions which support the information.
+
 function whyexclude(board, poslist, nums) {
   var support = [];
   var marked = Sudoku.emptyboard();
@@ -276,6 +287,7 @@ function whyexclude(board, poslist, nums) {
 }
 
 // Look to find not-yet-noted conflicts that force an answer.
+
 function singlenumdirect(board, fb, unz) {
   var hint = fb.allowed;
   var result = [];
@@ -297,6 +309,7 @@ function singlenumdirect(board, fb, unz) {
 
 // Look in each block to find a number which needs to be placed, but which
 // is directly excluded in each available square except one.
+
 function singleposdirect(board, fb) {
   var result = [];
   for (var axis = 2; axis >= 0; axis--) {
@@ -333,6 +346,7 @@ function singleposdirect(board, fb) {
 
 // Like singleposdirect, but takes into account work-in-progress marks
 // as represented by unz.
+
 function singlepos(board, fb, unz) {
   var result = [];
   // quick check for bits that are all OK
@@ -382,6 +396,7 @@ function singlepos(board, fb, unz) {
 }
 
 // Look to find not-yet-noted conflicts that force an answer.
+
 function singlenum(board, bits) {
   var result = [];
   for (var pos = 0; pos < Sudoku.S; pos++) {
@@ -415,6 +430,7 @@ function singlenum(board, bits) {
 // Given a board of known numbers and an array of bitmasks representing
 // small guesses, fills in the bits representing what is known as well, and
 // returns the resulting array.
+
 function fullbits(board, bits) {
   var result = bits.slice();
   for (var j = 0; j < Sudoku.S; j++) {
@@ -425,6 +441,7 @@ function fullbits(board, bits) {
 
 // A claiming strategy, for example:
 // http://sudoku.ironmonger.com/howto/claiming/docs.tpl
+
 function claiming(board, unz, bits) {
   unz = fullbits(board, unz);
   var result = [];
@@ -478,6 +495,7 @@ function claiming(board, unz, bits) {
 
 // Implements pointing strategies, e.g.,
 // http://www.sudokuwiki.org/intersection_removal
+
 function pointing(board, unz, bits) {
   unz = fullbits(board, unz);
   var result = [];
@@ -526,6 +544,7 @@ function pointing(board, unz, bits) {
 }
 
 // A sorting function to prefer easier hints.
+
 function hintsort(x, y) {
   // Seeing when only a single position is available is easiest
   if (x.hint == 'singleposdirect' && y.hint == 'singlenumdirect') {
@@ -559,6 +578,7 @@ function hintsort(x, y) {
 
 // Grades a puzzle according to the sequence of hints that would be
 // need to solve it.
+
 function hintgrade(puzzle) {
   var answer = Sudoku.emptyboard();
   work = [];

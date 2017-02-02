@@ -1,19 +1,24 @@
 // A minimal UI for Sudoku, an A/B experiment lab for 6.831.
 
 // This file intentionally exposes its names to global scope to
-// simplify testing, so you can directly manipulate the state, for
-// example, by
+// simplify testing, so you can directly manipulate the state
+// from the console. For example, set the selected number:
 //    setcurnumber(3)
-// or 
+// or retrieve, modify, and set the state:
 //    state=currentstate(); state.answer[0]=3+1; commitstate(state);
 
-// For a quick user experience, we use a 2x2x2x2-sized sudoku game.
+
+/////////////////////////////////////////////////////////////////////////////
+// Constants and global state
+/////////////////////////////////////////////////////////////////////////////
+
+// Initialize algorithm.js: we use a 2x2x2x2-sized sudoku game.
 Sudoku.init(2);
 
-var PRODUCTION_MODE = false;   // Enables context menus.
-var USE_LOCAL_STORAGE = true;  // Enables saving state to localStorage.
-var SHOW_TIMER = 1;            // Enables timer.
-var SYMMETRIC_PUZZLES = false; // Allows asymmetric puzzles.
+var DISABLE_CONTEXTMENU = false; // Enables context menus.
+var USE_LOCAL_STORAGE = true;    // Enables saving state to localStorage.
+var SHOW_TIMER = 1;              // Enables timer.
+var SYMMETRIC_PUZZLES = false;   // Allows asymmetric puzzles.
 
 // This app uses url-based state to support deep linking.  That means
 // almost all the application state is stored in the URL, which allows
@@ -43,6 +48,7 @@ var curnumber = null;                  // currently selected number.
 /////////////////////////////////////////////////////////////////////////////
 
 // The main entry point: runs when the page is finished loading.
+
 $(function() {
   var sinit;
   // Generate static HTML such as the number palette.
@@ -68,6 +74,7 @@ $(function() {
 
 // This function generates or loads (from localStorage) puzzle #X,
 // and makes it the current puzzle.
+
 function setupgame(seed) {
   // If no seed is given, remember the last seed or take the default 1.
   if (!seed) { seed = loadseed(); }
@@ -100,37 +107,43 @@ function setupgame(seed) {
 /////////////////////////////////////////////////////////////////////////////
 
 // Retrieve current state from URL.
+
 function currentstate() {
   return decodeboardstate(gethashdata());
 }
 
 // Save state in URL and localstorage.
+
 function commitstate(state) {
+  // Automatically update elapsed time unless already solved.
   var now = (new Date).getTime();
   if (state.gentime > starttime) {
     starttime = state.gentime;
   }
-  // automatically update elapsed time unless already solved
   if (!victorious(state) || !victorious(currentstate())) {
     state.elapsed = (now - starttime);
   }
+  // Update the url (may trigger a redraw).
   sethashdata(encodeboardstate(state));
+  // Save the state in localStorage also.
   savestate(storagename(state.seed), state);
 }
 
 // Parses a url-parameter-style string after the current URL hash parts.
+
 function gethashdata() {
   var result = {};
-  window.location.hash.substr(1).split("&").forEach(function (pair) {
-    if (pair === "") return;
-    var parts = pair.split("=");
-    result[parts[0]] =
-          parts[1] && decodeURIComponent(parts[1].replace(/\+/g, " "));
+  window.location.hash.replace(/^\W*/, '').split('&').forEach(function (pair) {
+    if (pair === '') return;
+    var parts = pair.split('=');
+    result[parts[0]] = parts[1] && decodeURIComponent(
+           parts[1].replace(/\+/g, ' '));
   });
   return result;
 }
 
 // Sets a url-parameter-style string as the hash part of a url.
+
 function sethashdata(data) {
   if (!window.location.hash && window.history.replaceState) {
     // Overwrite a hashless history entry.
@@ -143,282 +156,55 @@ function sethashdata(data) {
 
 
 /////////////////////////////////////////////////////////////////////////////
-// Transient UI: popups, focus, selection, timer
+// State serialization
 /////////////////////////////////////////////////////////////////////////////
 
-// Move the focus rectangle.
-function setvisiblefocus(kf) {
-  if (visiblefocus !== null) {
-    $(visiblefocus).find('div.sudoku-border').toggleClass('focus', false);
+// Encodes the game state as a set of scalars, suitable for a URL.
+
+function encodeboardstate(state) {
+  // puzzle: a list of N^2 nulls and numbers from 0-(N-1) for given numbers.
+  var result = {
+    puzzle: encodepuzzle(state.puzzle)
   }
-  visiblefocus = kf;
-  if (visiblefocus !== null) {
-    $(visiblefocus).find('div.sudoku-border').toggleClass('focus', true);
-  }
+  // answer: a list of N^2 nulls and numbers from 0-(N-1) for written numbers.
+  if ('answer' in state) { result.answer = encodepuzzle(state.answer); }
+  // work: a list of N^2 bitmasks from 0-(2^N-1) for small numbers.
+  if ('work' in state) { result.work = arraytobase64(state.work); }
+  // seed: the puzzle number; 1 is the first page puzzle.
+  if ('seed' in state) { result.seed = state.seed; }
+  // gentime: when the puzzle was created, unix time milliseconds.
+  if ('gentime' in state) { result.gentime = state.gentime; }
+  // elapsed: number of milliseconds the user has actively spent on the puzzle.
+  if ('elapsed' in state) { result.elapsed = state.elapsed; }
+  // timer: true if the time should be shown.
+  if ('timer' in state) { result.timer = state.timer; }
+  // size: 2 for 4x4 boards, 3 for 9x9 boards.
+  result.size = Sudoku.B;
+  return result;
 }
 
-// Set the currently-selected number.  Zero is the eraser.
-function setcurnumber(num) {
-  $('td.numberkey-cell').toggleClass('selected', false);
-  $('#nk' + num).toggleClass('selected', true);
-  curnumber = num;
-}
+// Decodes game state from a set of scalars, e.g., from a URL.
 
-// Dismiss popup messages.
-function hidepopups() {
-  $('div.sudoku-popup').css('display', 'none');
-}
-
-// Unhide the popup with a given id.
-function showpopup(id) {
-  var velt = $(id);
-  var telt = $('table.sudoku');
-  var position = telt.offset();
-  position.left += (telt.outerWidth() - velt.outerWidth()) / 2;
-  position.top += (telt.outerHeight() - velt.outerHeight()) / 3;
-  velt.css({
-    display: 'block',
-    left: position.left,
-    top: position.top
-  });
-}
-
-// Format timer text.
-function formatelapsed(elapsed) {
-  if (!(elapsed >= 0)) { return '-'; }
-  var seconds = Math.floor(elapsed / 1000);
-  var minutes = Math.floor(seconds / 60);
-  var hours = Math.floor(minutes / 60);
-  seconds -= minutes * 60;
-  minutes -= hours * 60;
-  var formatted = minutes + ':' + (seconds < 10 ? '0' : '') + seconds;
-  if (hours > 0) {
-    formattted = hours + ':' + (minutes < 10 ? '0' : '') + formatted;
-  }
-  return formatted;
-}
-
-// The countdown timer redraws itself using this function.
-function updatetime() {
-  if (runningtime && $('.timer').is(':visible')) {
-    $('.timer').text(formatelapsed((new Date).getTime() - starttime));
-    setTimeout(updatetime,
-        1001 - (((new Date).getTime() - starttime) % 1000));
-  } else {
-    runningtime = false;
-  }
-}
-
-
-/////////////////////////////////////////////////////////////////////////////
-// Number palette interactions
-/////////////////////////////////////////////////////////////////////////////
-
-// We always use "on" so we can bind events to elements which do not exist
-// at the beginning of the program when we are setting up binding.
-//
-// Read http://api.jquery.com/on/#direct-and-delegated-events
-// to understand why we are doing this.
-
-// Clicks outside other regions set the number palette to 'eraser'.
-$(document).on('click', function(ev) {
-  if (!$(ev.target).is('a,input')) {
-    setcurnumber(0);
-  }
-  hidepopups();
-});
-
-// Clicks in the number palette.
-$(document).on('click', 'td.numberkey-cell', function(ev) {
-  var num = parseInt($(this).attr('id').substr(2));
-  setcurnumber(num);
-  ev.stopPropagation();
-});
-
-
-/////////////////////////////////////////////////////////////////////////////
-// Suoku board interactions
-/////////////////////////////////////////////////////////////////////////////
-
-// Mouse entering a sudoku cell sets visible focus.
-$(document).on('mouseenter', 'td.sudoku-cell', function(ev) {
-  $(this).find('div.sudoku-border').toggleClass('focus', true);
-  setvisiblefocus(this);
-  ev.stopPropagation();
-});
-
-// Mouse leaving a sudoku cell sets visible focus.
-$(document).on('mouseleave', 'td.sudoku-cell', function(ev) {
-  $(this).find('div.sudoku-border').toggleClass('focus', false);
-  setvisiblefocus(null);
-  ev.stopPropagation();
-});
-
-if (PRODUCTION_MODE) {
-  // Defeats right-click context menu.
-  $(document).on('contextmenu', function(ev) {
-    ev.preventDefault();
-    ev.stopPropagation();
-  });
-}
-
-// Defeats normal sudoku-cell click-handling on mouseup.
-$(document).on('click', 'td.sudoku-cell', function(ev) {
-  ev.stopPropagation();
-});
-
-// Handle sudoku cell clicks on mousedown.
-$(document).on('mousedown', 'td.sudoku-cell', function(ev) {
-  ev.preventDefault();
-  hidepopups();
-  var pos = parseInt($(this).attr('id').substr(2));
-  var state = currentstate();
-  // Ignore the click if the square is given in the puzzle.
-  if (state.puzzle[pos] !== null) return;
-  // Internally we store "1" as "0".
-  var num = curnumber - 1;
-  if (num == -1) {
-    // Erase this square.
-    state.answer[pos] = null;
-    state.work[pos] = 0;
-  } else if (isalt(ev)) {
-    // Undiscoverable: write small numbers if ctrl is pressed.
-    state.answer[pos] = null;
-    state.work[pos] ^= (1 << num);
-  } else {
-    // Set the number
-    state.answer[pos] = num;
-    state.work[pos] = 0;
-    // Update elapsed time immediately, to avoid flicker upon victory.
-    if (victorious(state)) {
-      var now = (new Date).getTime();
-      if (state.gentime > starttime) {
-        starttime = state.gentime;
-      }
-      state.elapsed = (now - starttime);
-      $(document).trigger('log', ['victory', {elapsed: state.elapsed}]);
+function decodeboardstate(data) {
+  if ('size' in data) {
+    // Do not load state from an incompatible size.
+    if (Sudoku.B != data.size) {
+      data = {}
     }
   }
-  // Immeidate redraw of just the keyed cell.
-  redraw(state, pos);
-  // Commit state after a timeout
-  setTimeout(function() {
-    commitstate(state);
-  }, 0);
-});
-
-// Detects if a modifier key is pressed.
-function isalt(ev) {
-  return (ev.which == 3) || (ev.ctrlKey) || (ev.shiftKey);
-}
-
-
-/////////////////////////////////////////////////////////////////////////////
-// Next/Previous game handling
-/////////////////////////////////////////////////////////////////////////////
-
-// Increments or decrements the seed, then sets up that game.
-function flippage(skip) {
-  var state = currentstate();
-  var seed = parseInt(state.seed);
-  if (seed >= 1 && seed <= 1e9) {
-    savestate(storagename(seed), state);
-  }
-  seed += skip;
-  if (!(seed >= 1 && seed <= 1e9)) {
-    seed = 1;
-  }
-  setupgame(seed);
-}
-
-// Handles the next button.
-$(document).on('click', '#nextbutton', function(ev) {
-  flippage(1);
-});
-
-// Handles the previous button.
-$(document).on('click', '#prevbutton', function(ev) {
-  flippage(-1);
-});
-
-/////////////////////////////////////////////////////////////////////////////
-// Clear/Check game handling
-/////////////////////////////////////////////////////////////////////////////
-
-// Clear the answers.
-$(document).on('click', '#clearbutton', function(ev) {
-  hidepopups();
-  var state = currentstate();
-  var cleared = {puzzle: state.puzzle, seed: state.seed, timer: state.timer,
-                 answer:[], work:[], gentime: (new Date).getTime()};
-  commitstate(cleared);
-});
-
-// Releasing the "check" button.
-$(document).on('mouseup mouseleave touchend', '#checkbutton', function() {
-  if ($('#victory').css('display') != 'none') {
-    return;
-  }
-  hidepopups();
-  var state = currentstate();
-  redraw(state);
-});
-
-// Depressing the "check" button.
-$(document).on('mousedown touchstart', '#checkbutton', function(ev) {
-  hidepopups();
-  var state = currentstate();
-  var sofar = boardsofar(state);
-  // Check for conflicts.
-  var conflicts = SudokuHint.conflicts(sofar);
-  if (conflicts.length == 0) {
-    // We are all good so far - and maybe have a win.
-    showpopup(countfilled(sofar) == Sudoku.S ? '#victory' : '#ok');
-  } else {
-    // Oops - there is some mistake.
-    showpopup('#errors');
-  }
-  ev.stopPropagation();
-});
-
-// Defeat normal click handliing for the "check" button.
-$(document).on('click', '#checkbutton', function(ev) {
-  if ($('#victory').css('display') != 'none') {
-    ev.stopPropagation();
-  }
-});
-
-
-/////////////////////////////////////////////////////////////////////////////
-// Win conditions
-/////////////////////////////////////////////////////////////////////////////
-
-// Returns an array with one entry per puzzle square, containing
-// null for any unfilled square, and a number from 0-(N-1) for any
-// square that was filled by the user or given as part of the puzzle.
-function boardsofar(state) {
-  var sofar = state.puzzle.slice();
-  for (var j = 0; j < Sudoku.S; j++) {
-    if (state.answer[j] !== null) sofar[j] = state.answer[j];
-  }
-  return sofar;
-}
-
-// Counts the number of squares that have been filled in, total.
-function countfilled(board) {
-  var count = 0;
-  for (var j = 0; j < Sudoku.S; j++) {
-    if (board[j] !== null) count += 1;
-  }
-  return count;
-}
-
-// Checks for victory.
-function victorious(state) {
-  var sofar = boardsofar(state);
-  if (countfilled(sofar) != Sudoku.S) return false;
-  if (SudokuHint.conflicts(sofar).length != 0) return false;
-  return true;
+  var puzzle = decodepuzzle('puzzle' in data ? data.puzzle : '');
+  var answer = decodepuzzle('answer' in data ? data.answer : '');
+  var work = base64toarray('work' in data ? data.work : '');
+  var result = {
+    puzzle: puzzle,
+    answer: answer,
+    work: work
+  };
+  if ('seed' in data) { result.seed = data.seed; }
+  if ('gentime' in data) { result.gentime = data.gentime; }
+  if ('elapsed' in data) { result.elapsed = data.elapsed; }
+  if ('timer' in data) { result.timer = parseInt(data.timer); }
+  return result;
 }
 
 
@@ -427,6 +213,7 @@ function victorious(state) {
 /////////////////////////////////////////////////////////////////////////////
 
 // Redraws the sudoku board.  If 'pos' is passed, only that square is drawn.
+
 function redraw(s, pos) {
   var state = s ? s : currentstate();
   var startpos = 0;
@@ -489,18 +276,332 @@ function redraw(s, pos) {
   }
 }
 
+// Makes a handwritten number, handling a glyph substitution.
+
+function handglyph(text) {
+  // The "1" doesn't look as one-like as the capital-I in Handlee.
+  if ('' + text === '1') { return 'I'; }
+  return text;
+}
+
+
+/////////////////////////////////////////////////////////////////////////////
+// Number palette interactions
+/////////////////////////////////////////////////////////////////////////////
+
+// We always use "on" so we can bind events to elements which do not exist
+// at the beginning of the program when we are setting up binding.
+//
+// Read http://api.jquery.com/on/#direct-and-delegated-events
+// to understand why we are doing this.
+
+// Clicks in the number palette.
+
+$(document).on('click', 'td.numberkey-cell', function(ev) {
+  var num = parseInt($(this).attr('id').substr(2));
+  setcurnumber(num);
+  ev.stopPropagation();
+});
+
+// Clicks outside other regions set the number palette to 'eraser'.
+
+$(document).on('click', function(ev) {
+  if (!$(ev.target).is('a,input')) {
+    setcurnumber(0);
+  }
+  hidepopups();
+});
+
+
+/////////////////////////////////////////////////////////////////////////////
+// Suoku board interactions
+/////////////////////////////////////////////////////////////////////////////
+
+// Mouse entering a sudoku cell sets visible focus.
+
+$(document).on('mouseenter', 'td.sudoku-cell', function(ev) {
+  $(this).find('div.sudoku-border').toggleClass('focus', true);
+  setvisiblefocus(this);
+  ev.stopPropagation();
+});
+
+// Mouse leaving a sudoku cell sets visible focus.
+
+$(document).on('mouseleave', 'td.sudoku-cell', function(ev) {
+  $(this).find('div.sudoku-border').toggleClass('focus', false);
+  setvisiblefocus(null);
+  ev.stopPropagation();
+});
+
+// Defeats right-click context menu.
+
+if (DISABLE_CONTEXTMENU) {
+  $(document).on('contextmenu', function(ev) {
+    ev.preventDefault();
+    ev.stopPropagation();
+  });
+}
+
+// Handle sudoku cell clicks on mousedown.
+
+$(document).on('mousedown', 'td.sudoku-cell', function(ev) {
+  ev.preventDefault();
+  hidepopups();
+  var pos = parseInt($(this).attr('id').substr(2));
+  var state = currentstate();
+  // Ignore the click if the square is given in the puzzle.
+  if (state.puzzle[pos] !== null) return;
+  // Internally we store "1" as "0".
+  var num = curnumber - 1;
+  if (num == -1) {
+    // Erase this square.
+    state.answer[pos] = null;
+    state.work[pos] = 0;
+  } else if (isalt(ev)) {
+    // Undiscoverable: write small numbers if ctrl is pressed.
+    state.answer[pos] = null;
+    state.work[pos] ^= (1 << num);
+  } else {
+    // Set the number
+    state.answer[pos] = num;
+    state.work[pos] = 0;
+    // Update elapsed time immediately, to avoid flicker upon victory.
+    if (victorious(state)) {
+      var now = (new Date).getTime();
+      if (state.gentime > starttime) {
+        starttime = state.gentime;
+      }
+      state.elapsed = (now - starttime);
+      $(document).trigger('log', ['victory', {elapsed: state.elapsed}]);
+    }
+  }
+  // Immeidate redraw of just the keyed cell.
+  redraw(state, pos);
+  // Commit state after a timeout
+  setTimeout(function() {
+    commitstate(state);
+  }, 0);
+});
+
+// Defeats normal sudoku-cell click-handling on mouseup.
+
+$(document).on('click', 'td.sudoku-cell', function(ev) {
+  ev.stopPropagation();
+});
+
+// Detects if a modifier key is pressed.
+
+function isalt(ev) {
+  return (ev.which == 3) || (ev.ctrlKey) || (ev.shiftKey);
+}
+
+
+/////////////////////////////////////////////////////////////////////////////
+// Next/Previous game handling
+/////////////////////////////////////////////////////////////////////////////
+
+// Handles the next button.
+
+$(document).on('click', '#nextbutton', function(ev) {
+  flippage(1);
+});
+
+// Handles the previous button.
+
+$(document).on('click', '#prevbutton', function(ev) {
+  flippage(-1);
+});
+
+// Increments or decrements the seed, then sets up that game.
+
+function flippage(skip) {
+  var state = currentstate();
+  var seed = parseInt(state.seed);
+  if (seed >= 1 && seed <= 1e9) {
+    savestate(storagename(seed), state);
+  }
+  seed += skip;
+  if (!(seed >= 1 && seed <= 1e9)) {
+    seed = 1;
+  }
+  setupgame(seed);
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// Clear/Check game handling
+/////////////////////////////////////////////////////////////////////////////
+
+// Clear the answers.
+
+$(document).on('click', '#clearbutton', function(ev) {
+  hidepopups();
+  var state = currentstate();
+  var cleared = {puzzle: state.puzzle, seed: state.seed, timer: state.timer,
+                 answer:[], work:[], gentime: (new Date).getTime()};
+  commitstate(cleared);
+});
+
+// Depressing the "check" button.
+
+$(document).on('mousedown touchstart', '#checkbutton', function(ev) {
+  hidepopups();
+  var state = currentstate();
+  var sofar = boardsofar(state);
+  // Check for conflicts.
+  var conflicts = SudokuHint.conflicts(sofar);
+  if (conflicts.length == 0) {
+    // We are all good so far - and maybe have a win.
+    showpopup(countfilled(sofar) == Sudoku.S ? '#victory' : '#ok');
+  } else {
+    // Oops - there is some mistake.
+    showpopup('#errors');
+  }
+  ev.stopPropagation();
+});
+
+// Releasing the "check" button.
+
+$(document).on('mouseup mouseleave touchend', '#checkbutton', function() {
+  if ($('#victory').css('display') != 'none') {
+    return;
+  }
+  hidepopups();
+  var state = currentstate();
+  redraw(state);
+});
+
+// Defeat normal click handliing for the "check" button.
+
+$(document).on('click', '#checkbutton', function(ev) {
+  if ($('#victory').css('display') != 'none') {
+    ev.stopPropagation();
+  }
+});
+
+
+/////////////////////////////////////////////////////////////////////////////
+// Transient UI: popups, focus, selection, timer
+/////////////////////////////////////////////////////////////////////////////
+
+// Move the focus rectangle.
+
+function setvisiblefocus(kf) {
+  if (visiblefocus !== null) {
+    $(visiblefocus).find('div.sudoku-border').toggleClass('focus', false);
+  }
+  visiblefocus = kf;
+  if (visiblefocus !== null) {
+    $(visiblefocus).find('div.sudoku-border').toggleClass('focus', true);
+  }
+}
+
+// Set the currently-selected number.  Zero is the eraser.
+
+function setcurnumber(num) {
+  $('td.numberkey-cell').toggleClass('selected', false);
+  $('#nk' + num).toggleClass('selected', true);
+  curnumber = num;
+}
+
+// Dismiss popup messages.
+
+function hidepopups() {
+  $('div.sudoku-popup').css('display', 'none');
+}
+
+// Unhide the popup with a given id.
+
+function showpopup(id) {
+  var velt = $(id);
+  var telt = $('table.sudoku');
+  var position = telt.offset();
+  position.left += (telt.outerWidth() - velt.outerWidth()) / 2;
+  position.top += (telt.outerHeight() - velt.outerHeight()) / 3;
+  velt.css({
+    display: 'block',
+    left: position.left,
+    top: position.top
+  });
+}
+
+// Format timer text.
+
+function formatelapsed(elapsed) {
+  if (!(elapsed >= 0)) { return '-'; }
+  var seconds = Math.floor(elapsed / 1000);
+  var minutes = Math.floor(seconds / 60);
+  var hours = Math.floor(minutes / 60);
+  seconds -= minutes * 60;
+  minutes -= hours * 60;
+  var formatted = minutes + ':' + (seconds < 10 ? '0' : '') + seconds;
+  if (hours > 0) {
+    formattted = hours + ':' + (minutes < 10 ? '0' : '') + formatted;
+  }
+  return formatted;
+}
+
+// The countdown timer redraws itself using this function.
+
+function updatetime() {
+  if (runningtime && $('.timer').is(':visible')) {
+    $('.timer').text(formatelapsed((new Date).getTime() - starttime));
+    setTimeout(updatetime,
+        1001 - (((new Date).getTime() - starttime) % 1000));
+  } else {
+    runningtime = false;
+  }
+}
+
+
+/////////////////////////////////////////////////////////////////////////////
+// Win conditions
+/////////////////////////////////////////////////////////////////////////////
+
+// Returns an array with one entry per puzzle square, containing
+// null for any unfilled square, and a number from 0-(N-1) for any
+// square that was filled by the user or given as part of the puzzle.
+
+function boardsofar(state) {
+  var sofar = state.puzzle.slice();
+  for (var j = 0; j < Sudoku.S; j++) {
+    if (state.answer[j] !== null) sofar[j] = state.answer[j];
+  }
+  return sofar;
+}
+
+// Counts the number of squares that have been filled in, total.
+
+function countfilled(board) {
+  var count = 0;
+  for (var j = 0; j < Sudoku.S; j++) {
+    if (board[j] !== null) count += 1;
+  }
+  return count;
+}
+
+// Checks for victory.
+
+function victorious(state) {
+  var sofar = boardsofar(state);
+  if (countfilled(sofar) != Sudoku.S) return false;
+  if (SudokuHint.conflicts(sofar).length != 0) return false;
+  return true;
+}
+
 
 /////////////////////////////////////////////////////////////////////////////
 // localStorage handling
 /////////////////////////////////////////////////////////////////////////////
 
 // The localStorage key used for this game.
+
 function storagename(seed) {
   return 'sudokupage_' + seed;
 }
 
 // Tries to load a saved game from a localStorage key, then commits
 // the state to the URL (triggering a re-render). False if not found.
+
 function loadgame(name) {
   var state = loadstate(name);
   if (!state) return false;
@@ -513,6 +614,7 @@ function loadgame(name) {
 }
 
 // Loads JSON data from localStorage, or null if not found.
+
 function loadstate(name) {
   if (!USE_LOCAL_STORAGE ||
       !('localStorage' in window) || !('JSON' in window) ||
@@ -525,6 +627,7 @@ function loadstate(name) {
 }
 
 // Saves the passed data to a localStorage key as JSON.
+
 function savestate(name, state) {
   if (!USE_LOCAL_STORAGE ||
       !('localStorage' in window) || !('JSON' in window)) {
@@ -534,11 +637,13 @@ function savestate(name, state) {
 }
 
 // Remembers the last saved seed.
+
 function loadseed() {
   return loadstate('sudokuseed') || 1;
 }
 
 // Saves the seed being played.
+
 function saveseed(seed) {
   savestate('sudokuseed', seed);
 }
@@ -546,53 +651,11 @@ function saveseed(seed) {
 
 
 /////////////////////////////////////////////////////////////////////////////
-// State serialization
-/////////////////////////////////////////////////////////////////////////////
-
-// Encodes the game state as a set of scalars.
-function encodeboardstate(state) {
-  var result = {
-    puzzle: encodepuzzle(state.puzzle)
-  }
-  if ('answer' in state) { result.answer = encodepuzzle(state.answer); }
-  if ('work' in state) { result.work = arraytobase64(state.work); }
-  if ('seed' in state) { result.seed = state.seed; }
-  if ('gentime' in state) { result.gentime = state.gentime; }
-  if ('elapsed' in state) { result.elapsed = state.elapsed; }
-  if ('timer' in state) { result.timer = state.timer; }
-  result.size = Sudoku.B;
-  return result;
-}
-
-// Loads game state from a set of scalars.
-function decodeboardstate(data) {
-  if ('size' in data) {
-    // Do not load state from an incompatible size.
-    if (Sudoku.B != data.size) {
-      data = {}
-    }
-  }
-  var puzzle = decodepuzzle('puzzle' in data ? data.puzzle : '');
-  var answer = decodepuzzle('answer' in data ? data.answer : '');
-  var work = base64toarray('work' in data ? data.work : '');
-  var result = {
-    puzzle: puzzle,
-    answer: answer,
-    work: work
-  };
-  if ('seed' in data) { result.seed = data.seed; }
-  if ('gentime' in data) { result.gentime = data.gentime; }
-  if ('elapsed' in data) { result.elapsed = data.elapsed; }
-  if ('timer' in data) { result.timer = parseInt(data.timer); }
-  return result;
-}
-
-
-/////////////////////////////////////////////////////////////////////////////
 // Simple string serialization for number arrays
 /////////////////////////////////////////////////////////////////////////////
 
 // Encodes an sparse array of small integers as a short string.
+
 function encodepuzzle(puzzle) {
   if (!puzzle) return '';
   var result = [];
@@ -603,6 +666,7 @@ function encodepuzzle(puzzle) {
 }
 
 // Decodes an array that was encoded by encodepuzzle.
+
 function decodepuzzle(str) {
   var puzzle = [];
   var c = 0;
@@ -617,18 +681,21 @@ function decodepuzzle(str) {
 }
 
 // Encodes a nubmer less that 4096 in base64.
+
 function shorttobase64(int18) {
   return base64chars[(int18 >> 6) & 63] +
          base64chars[int18 & 63];
 }
 
 // Decodes a nubmer less that 4096 in base64.
+
 function base64toshort(base64, index) {
   return (base64chars.indexOf(base64.charAt(index)) << 6) +
           base64chars.indexOf(base64.charAt(index + 1));
 }
 
 // Encodes an array of numbers less than 4096 in base64, skipping end zeros.
+
 function arraytobase64(numbers) {
   var result = [];
   for (var end = numbers.length; end > 0; end--) {
@@ -641,6 +708,7 @@ function arraytobase64(numbers) {
 }
 
 // Decodes an array of numbers less than 4096 in base64, padding end zeros.
+
 function base64toarray(base64) {
   var result = [];
   for (var j = 0; j + 1 < base64.length; j += 2) {
@@ -658,11 +726,14 @@ var base64chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
                   "0123456789" +
                   "-_";
 
+
 /////////////////////////////////////////////////////////////////////////////
 // Static HTML construction.
 /////////////////////////////////////////////////////////////////////////////
 
-// Generates HTML for an NxN Sudoku table.
+// Generates HTML for a not-filled-in NxN Sudoku table.
+// The function redraw() will fill this in based on the current state.
+
 function boardhtml() {
   var text = "<table class=sudoku id=grid cellpadding=1px>\n";
   text += "<tr><td colspan=13 class=sudoku-border>" +
@@ -689,14 +760,8 @@ function boardhtml() {
   return text;
 }
 
-// Makes a handwritten number, handling a glyph substitution.
-function handglyph(text) {
-  // The "1" doesn't look as one-like as the capital-I in Handlee.
-  if ('' + text === '1') { return 'I'; }
-  return text;
-}
-
 // Generates HTML for the number palette from 1 to N, plus an eraser.
+
 function numberkeyhtml() {
   var result = '<table class=numberkey>';
   for (var j = 1; j <= Sudoku.N; ++j) {
@@ -712,6 +777,7 @@ function numberkeyhtml() {
 }
 
 // Pours generated HTML into the HTML page.
+
 function setup_screen() {
   $('#centerlayout').prepend(boardhtml());
   $('#leftlayout').prepend(numberkeyhtml());
