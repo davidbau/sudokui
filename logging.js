@@ -26,6 +26,14 @@ var EVENT_PROPERTIES_TO_LOG = {
   pageY: true
 };
 
+// This function is called to record some global state on each event.
+var GLOBAL_STATE_TO_LOG = function() {
+  return {
+    visiblefocus: visiblefocus && parseInt(visiblefocus.id.substr(2)),
+    curnumber: curnumber
+  };
+};
+
 (function() {
 
 // A persistent unique id for the user.
@@ -113,11 +121,8 @@ function getUniqueId() {
 function logEvent(event, customName, customInfo) {
   var time = (new Date).getTime();
   var name = customName || event.type;
-  // By default, monitor these two variables from sudoku-ui.js on every event.
-  var infoObj = {
-    visiblefocus: visiblefocus && parseInt(visiblefocus.id.substr(2)),
-    curnumber: curnumber
-  };
+  // By default, monitor some global state on every event.
+  var infoObj = GLOBAL_STATE_TO_LOG();
   // And monitor a few interesting fields from the event, if present.
   for (var key in EVENT_PROPERTIES_TO_LOG) {
     if (key in event) {
