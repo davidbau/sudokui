@@ -11,7 +11,7 @@
 // $(element).trigger('log', ['myevent', {key1: val1, key2: val2}]);
 
 var ENABLE_NETWORK_LOGGING = true; // Controls network logging.
-var VER = 'A';                     // Labels every entry with ver: "A".
+var VERSION = 'A';                 // Labels every entry with version: "A".
 
 // These event types are intercepted for logging before jQuery handlers.
 var EVENT_TYPES_TO_LOG = {
@@ -30,7 +30,8 @@ var EVENT_PROPERTIES_TO_LOG = {
 var GLOBAL_STATE_TO_LOG = function() {
   return {
     visiblefocus: visiblefocus && parseInt(visiblefocus.id.substr(2)),
-    curnumber: curnumber
+    curnumber: curnumber,
+    version: VERSION
   };
 };
 
@@ -46,10 +47,13 @@ function hookEventsToLog() {
   // the handler, so we see the state before event processing.
   var originalFix = jQuery.event.fix;
   jQuery.event.fix = function(originalEvent) {
+    // First do jQuery's normal fix
+    var result = originalFix.call(this, originalEvent);
+    // Then log the evnt if it is of a selected type.
     if (originalEvent.type in EVENT_TYPES_TO_LOG) {
       logEvent(originalEvent);
     }
-    return originalFix.call(this, originalEvent);
+    return result;
   };
 
   // Once the page is loaded, show our own unique id.
