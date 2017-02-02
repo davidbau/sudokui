@@ -13,6 +13,7 @@
 /////////////////////////////////////////////////////////////////////////////
 
 // Initialize algorithm.js: we use a 2x2x2x2-sized sudoku game.
+// This sets up the constants Sudoku.N = 4, Sudoku.S = 16, Sudoku.B = 2.
 Sudoku.init(2);
 
 var DISABLE_CONTEXTMENU = false; // Enables context menus.
@@ -157,7 +158,7 @@ function sethashdata(data) {
 // State serialization
 /////////////////////////////////////////////////////////////////////////////
 
-// Encodes the game state as a set of scalars, suitable for a URL.
+// Encodes the game state as a set of scalars, suitable for storing in a URL.
 
 function encodeboardstate(state) {
   // puzzle: a list of N^2 nulls and numbers from 0-(N-1) for given numbers.
@@ -209,8 +210,8 @@ function decodeboardstate(data) {
 
 // Redraws the sudoku board.  If 'pos' is passed, only that square is drawn.
 
-function redraw(s, pos) {
-  var state = s ? s : currentstate();
+function redraw(givenstate, pos) {
+  var state = givenstate ? givenstate : currentstate();
   var startpos = 0;
   var endpos = Sudoku.S;
   if (typeof pos != 'undefined') { startpos = pos; endpos = pos + 1; }
@@ -244,15 +245,15 @@ function redraw(s, pos) {
   // Run through the sudoku board and render each square.
   for (var j = startpos; j < endpos; j++) {
     if (puzzle[j] !== null) {
-      // Render a given-number in bold.
+      // Render a given-number in bold from the "puzzle" state.
       $("#sn" + j).attr('class', 'sudoku-given').html(puzzle[j] + 1);
     } else {
       if (answer[j] !== null || work[j] == 0) {
-        // Render an answered-number in pencil.
+        // Render an answered-number in pencil from the "answer" state.
         $("#sn" + j).attr('class', 'sudoku-answer').html(
             answer[j] === null ? '&nbsp;' : handglyph(answer[j] + 1));
       } else {
-        // Render a grid of mini-numbers, work in progress.
+        // Render a grid of mini-numbers from the "work" state.
         var text = '<table class="sudoku-work-table">';
         for (var n = 0; n < Sudoku.N; n++) {
           if (n % Sudoku.B == 0) { text += '<tr>'; }
@@ -367,7 +368,7 @@ $(document).on('mousedown', 'td.sudoku-cell', function(ev) {
       $(document).trigger('log', ['victory', {elapsed: state.elapsed}]);
     }
   }
-  // Immeidate redraw of just the keyed cell.
+  // Immediate redraw of just the keyed cell.
   redraw(state, pos);
   // Commit state after a timeout
   setTimeout(function() {
